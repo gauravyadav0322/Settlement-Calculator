@@ -1,0 +1,1027 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Securities Settlement Recognized Loss Calculator</title>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: Arial, sans-serif;
+      background: #f0f2f5;
+      color: #222;
+      min-height: 100vh;
+    }
+    header {
+      background: #1a3557;
+      color: #fff;
+      padding: 18px 32px;
+      display: flex;
+      align-items: center;
+      gap: 16px;
+    }
+    header h1 { font-size: 1.3rem; font-weight: 700; }
+    header p { font-size: 0.85rem; opacity: 0.8; margin-top: 2px; }
+    .container { max-width: 1300px; margin: 0 auto; padding: 24px 16px; }
+
+    .card {
+      background: #fff;
+      border-radius: 8px;
+      box-shadow: 0 1px 4px rgba(0,0,0,0.10);
+      padding: 24px;
+      margin-bottom: 20px;
+    }
+    .card h2 { font-size: 1.05rem; font-weight: 700; color: #1a3557; margin-bottom: 14px; border-bottom: 2px solid #e5e9f0; padding-bottom: 8px; }
+
+    .tabs { display: flex; gap: 0; margin-bottom: 0; border-bottom: 2px solid #1a3557; }
+    .tab-btn {
+      padding: 10px 26px;
+      border: none;
+      background: #e5e9f0;
+      cursor: pointer;
+      font-size: 0.97rem;
+      font-weight: 600;
+      color: #555;
+      border-radius: 6px 6px 0 0;
+      margin-right: 4px;
+      transition: background 0.15s, color 0.15s;
+    }
+    .tab-btn.active { background: #1a3557; color: #fff; }
+    .tab-content { display: none; }
+    .tab-content.active { display: block; }
+
+    .upload-zone {
+      border: 2px dashed #aab4c8;
+      border-radius: 8px;
+      padding: 32px 20px;
+      text-align: center;
+      cursor: pointer;
+      background: #f8fafd;
+      transition: border-color 0.2s, background 0.2s;
+      margin-bottom: 16px;
+    }
+    .upload-zone:hover, .upload-zone.drag { border-color: #1a3557; background: #eef3fb; }
+    .upload-zone input[type="file"] { display: none; }
+    .upload-zone .icon { font-size: 2.2rem; margin-bottom: 8px; }
+    .upload-zone p { color: #555; font-size: 0.95rem; }
+    .upload-zone strong { color: #1a3557; }
+
+    .btn {
+      display: inline-block;
+      padding: 9px 22px;
+      border-radius: 6px;
+      border: none;
+      cursor: pointer;
+      font-size: 0.95rem;
+      font-weight: 600;
+      transition: background 0.15s;
+    }
+    .btn-primary { background: #1a3557; color: #fff; }
+    .btn-primary:hover { background: #14284a; }
+    .btn-success { background: #1d7a3e; color: #fff; }
+    .btn-success:hover { background: #155c2e; }
+    .btn-danger { background: #c0392b; color: #fff; }
+    .btn-danger:hover { background: #96281b; }
+    .btn-sm { padding: 5px 14px; font-size: 0.85rem; }
+
+    .alert { padding: 12px 16px; border-radius: 6px; margin-bottom: 14px; font-size: 0.93rem; }
+    .alert-info { background: #dbeafe; color: #1e40af; }
+    .alert-success { background: #dcfce7; color: #166534; }
+    .alert-error { background: #fee2e2; color: #991b1b; }
+    .alert-warn { background: #fef9c3; color: #854d0e; }
+
+    table { width: 100%; border-collapse: collapse; font-size: 0.88rem; }
+    th { background: #1a3557; color: #fff; padding: 9px 10px; text-align: left; font-weight: 600; white-space: nowrap; }
+    td { padding: 7px 10px; border-bottom: 1px solid #e8ecf2; vertical-align: middle; }
+    tr:hover td { background: #f4f7fb; }
+    .tbl-wrap { overflow-x: auto; border-radius: 6px; border: 1px solid #dce2ec; }
+
+    .summary-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+      gap: 14px;
+      margin-bottom: 18px;
+    }
+    .stat-box {
+      background: #f4f7fb;
+      border-radius: 8px;
+      padding: 16px;
+      border-left: 4px solid #1a3557;
+    }
+    .stat-box .label { font-size: 0.82rem; color: #666; font-weight: 600; text-transform: uppercase; letter-spacing: 0.04em; }
+    .stat-box .value { font-size: 1.35rem; font-weight: 700; color: #1a3557; margin-top: 4px; }
+    .stat-box.green { border-left-color: #1d7a3e; }
+    .stat-box.green .value { color: #1d7a3e; }
+    .stat-box.red { border-left-color: #c0392b; }
+    .stat-box.red .value { color: #c0392b; }
+
+    .badge { display: inline-block; padding: 2px 9px; border-radius: 12px; font-size: 0.78rem; font-weight: 700; }
+    .badge-blue { background: #dbeafe; color: #1e40af; }
+    .badge-green { background: #dcfce7; color: #166534; }
+    .badge-red { background: #fee2e2; color: #991b1b; }
+    .badge-gray { background: #f1f5f9; color: #475569; }
+
+    .section-title { font-size: 1.0rem; font-weight: 700; color: #1a3557; margin: 20px 0 10px; }
+
+    .flex-row { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; margin-bottom: 12px; }
+    .spacer { flex: 1; }
+
+    .spinner { display: inline-block; width: 18px; height: 18px; border: 3px solid #c8d4e8; border-top-color: #1a3557; border-radius: 50%; animation: spin 0.7s linear infinite; vertical-align: middle; margin-left: 8px; }
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    #rawDataTable th, #rawDataTable td { font-size: 0.82rem; }
+    .number { text-align: right; font-family: 'Courier New', monospace; }
+    .zero { color: #aaa; }
+    .positive { color: #1d7a3e; font-weight: 600; }
+    .negative { color: #c0392b; font-weight: 600; }
+
+    .collapse-btn { background: none; border: none; cursor: pointer; color: #1a3557; font-size: 0.85rem; font-weight: 600; text-decoration: underline; margin-left: 10px; }
+
+    footer { text-align: center; padding: 24px; color: #888; font-size: 0.82rem; }
+
+    @media (max-width: 700px) {
+      header { padding: 12px 16px; }
+      .card { padding: 14px; }
+      .summary-grid { grid-template-columns: 1fr 1fr; }
+    }
+  </style>
+</head>
+<body>
+
+<header>
+  <div>
+    <h1>⚖️ Securities Settlement — Recognized Loss Calculator</h1>
+    <p>Kraft Heinz Securities Litigation &amp; Twitter Inc. Securities Litigation</p>
+  </div>
+</header>
+
+<div class="container">
+
+  <!-- Settlement Selector Tabs -->
+  <div class="card" style="padding-bottom:0;">
+    <div class="tabs">
+      <button class="tab-btn active" onclick="switchSettlement('kh')">Kraft Heinz (2019)</button>
+      <button class="tab-btn" onclick="switchSettlement('tw')">Twitter (2016)</button>
+    </div>
+  </div>
+
+  <!-- KRAFT HEINZ TAB -->
+  <div id="tab-kh" class="tab-content active">
+    <div class="card">
+      <h2>📋 Settlement Parameters — Kraft Heinz Securities Litigation</h2>
+      <div class="alert alert-info">
+        Class Period: <strong>Nov 6, 2015 – Aug 7, 2019</strong> &nbsp;|&nbsp;
+        Settlement: <strong>$450,000,000</strong> &nbsp;|&nbsp;
+        Corrective Disclosures: <strong>Nov 2, 2018 &nbsp;|&nbsp; Feb 22, 2019 &nbsp;|&nbsp; Aug 8–9, 2019</strong>
+      </div>
+      <div style="font-size:0.87rem; line-height:1.7; color:#444;">
+        <strong>Artificial Inflation Table (per share):</strong>
+        &nbsp; Nov 6 2015 – Nov 1 2018: <strong>$12.59</strong> &nbsp;|&nbsp;
+        Nov 2 2018 – Feb 21 2019: <strong>$10.93</strong> &nbsp;|&nbsp;
+        Feb 22 2019 – Aug 7 2019: <strong>$4.04</strong> &nbsp;|&nbsp;
+        Aug 8 2019 (sale only): <strong>$1.33</strong>
+        <br />
+        <strong>90-day look-back average (Aug 8 – Nov 5, 2019):</strong> $27.55
+        &nbsp;|&nbsp; <strong>FIFO matching</strong> applied to all transactions
+      </div>
+    </div>
+
+    <div class="card">
+      <h2>📁 Upload Client Data</h2>
+      <div class="alert alert-info">
+        Upload an Excel file with columns: <strong>Fund Name, Transaction Type, Purchases, Sales, Holdings, Price per share, Trade Date, Entity</strong>
+        (same format as the provided masked data files)
+      </div>
+      <div class="upload-zone" id="kh-dropzone" onclick="document.getElementById('kh-file').click()"
+           ondragover="event.preventDefault(); this.classList.add('drag')"
+           ondragleave="this.classList.remove('drag')"
+           ondrop="handleDrop(event,'kh')">
+        <input type="file" id="kh-file" accept=".xlsx,.xls,.csv" onchange="handleFile(event,'kh')" />
+        <div class="icon">📂</div>
+        <p><strong>Click to upload</strong> or drag & drop your Excel file here</p>
+        <p style="font-size:0.82rem;color:#888;margin-top:6px;">Supports .xlsx, .xls, .csv</p>
+      </div>
+      <div id="kh-file-info"></div>
+    </div>
+
+    <div id="kh-results" style="display:none;"></div>
+  </div>
+
+  <!-- TWITTER TAB -->
+  <div id="tab-tw" class="tab-content">
+    <div class="card">
+      <h2>📋 Settlement Parameters — Twitter Inc. Securities Litigation</h2>
+      <div class="alert alert-info">
+        Class Period: <strong>Feb 6, 2015 – Jul 28, 2015</strong> &nbsp;|&nbsp;
+        Settlement: <strong>$809,500,000</strong> &nbsp;|&nbsp;
+        Corrective Disclosures: <strong>Apr 28, 2015 (3:07 PM EDT) &nbsp;|&nbsp; Jul 28, 2015</strong>
+      </div>
+      <div style="font-size:0.87rem; line-height:1.7; color:#444;">
+        <strong>Inflation Table:</strong> &nbsp;
+        Feb 6 – Apr 28 (before 3:07 PM EDT): <strong>$20.34</strong> total inflation &nbsp;|&nbsp;
+        Apr 28 (after 3:07 PM) – Jul 28: <strong>$11.37</strong> remaining inflation &nbsp;|&nbsp;
+        Jul 29 onward: <strong>$0</strong>
+        <br />
+        <strong>90-day look-back average (Aug 3 – Oct 30, 2015):</strong> $28.06
+        &nbsp;|&nbsp; <strong>FIFO matching</strong> &nbsp;|&nbsp; Holding value cutoff: <strong>$29.72</strong> (Aug 3, 2015)
+      </div>
+    </div>
+
+    <div class="card">
+      <h2>📁 Upload Client Data</h2>
+      <div class="alert alert-info">
+        Upload an Excel file with columns: <strong>Fund Name, Transaction Type, Purchases, Sales, Holdings, Price per share, Trade Date, Entity</strong>
+      </div>
+      <div class="upload-zone" id="tw-dropzone" onclick="document.getElementById('tw-file').click()"
+           ondragover="event.preventDefault(); this.classList.add('drag')"
+           ondragleave="this.classList.remove('drag')"
+           ondrop="handleDrop(event,'tw')">
+        <input type="file" id="tw-file" accept=".xlsx,.xls,.csv" onchange="handleFile(event,'tw')" />
+        <div class="icon">📂</div>
+        <p><strong>Click to upload</strong> or drag & drop your Excel file here</p>
+        <p style="font-size:0.82rem;color:#888;margin-top:6px;">Supports .xlsx, .xls, .csv</p>
+      </div>
+      <div id="tw-file-info"></div>
+    </div>
+
+    <div id="tw-results" style="display:none;"></div>
+  </div>
+
+</div>
+
+<footer>Securities Settlement Loss Calculator &mdash; For professional use only. Results are estimates based on Plan of Allocation formulas.</footer>
+
+<script>
+// ============================================================
+// UTILITY
+// ============================================================
+function fmt(n) {
+  if (n === null || n === undefined || isNaN(n)) return '-';
+  return '$' + n.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+}
+function fmtShares(n) {
+  if (!n && n !== 0) return '-';
+  return n.toLocaleString('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 2 });
+}
+function safeNum(v) {
+  if (v === null || v === undefined || v === '' || (typeof v === 'string' && v.trim() === '')) return 0;
+  const n = parseFloat(v);
+  return isNaN(n) ? 0 : n;
+}
+function parseDate(v) {
+  if (!v) return null;
+  if (v instanceof Date) return v;
+  if (typeof v === 'number') {
+    // Excel serial date
+    const d = new Date((v - 25569) * 86400 * 1000);
+    return new Date(d.getUTCFullYear(), d.getUTCMonth(), d.getUTCDate());
+  }
+  const s = String(v).trim();
+  const d = new Date(s);
+  if (!isNaN(d)) return new Date(d.getFullYear(), d.getMonth(), d.getDate());
+  return null;
+}
+function dateKey(d) {
+  if (!d) return '';
+  return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
+}
+function dateCmp(a, b) {
+  return a.getTime() - b.getTime();
+}
+
+// ============================================================
+// TAB SWITCH
+// ============================================================
+function switchSettlement(id) {
+  document.querySelectorAll('.tab-btn').forEach((b,i) => b.classList.toggle('active', ['kh','tw'][i] === id));
+  document.querySelectorAll('.tab-content').forEach(t => t.classList.remove('active'));
+  document.getElementById('tab-' + id).classList.add('active');
+}
+
+// ============================================================
+// FILE HANDLING
+// ============================================================
+function handleDrop(e, id) {
+  e.preventDefault();
+  document.getElementById(id + '-dropzone').classList.remove('drag');
+  const file = e.dataTransfer.files[0];
+  if (file) processFile(file, id);
+}
+function handleFile(e, id) {
+  const file = e.target.files[0];
+  if (file) processFile(file, id);
+}
+
+function processFile(file, id) {
+  const info = document.getElementById(id + '-file-info');
+  info.innerHTML = `<div class="alert alert-info">Loading <strong>${file.name}</strong>... <span class="spinner"></span></div>`;
+  const reader = new FileReader();
+  reader.onload = function(e) {
+    try {
+      let rows;
+      if (file.name.endsWith('.csv')) {
+        rows = parseCSV(e.target.result);
+      } else {
+        const wb = XLSX.read(e.target.result, { type: 'array', cellDates: false });
+        const sheetName = wb.SheetNames[0];
+        rows = XLSX.utils.sheet_to_json(wb.Sheets[sheetName], { defval: null, raw: true });
+      }
+      info.innerHTML = `<div class="alert alert-success">✅ Loaded <strong>${file.name}</strong> — ${rows.length} rows found.</div>`;
+      if (id === 'kh') calculateKraftHeinz(rows);
+      else calculateTwitter(rows);
+    } catch(err) {
+      info.innerHTML = `<div class="alert alert-error">❌ Error reading file: ${err.message}</div>`;
+    }
+  };
+  if (file.name.endsWith('.csv')) reader.readAsText(file);
+  else reader.readAsArrayBuffer(file);
+}
+
+function parseCSV(text) {
+  const lines = text.split('\n');
+  const headers = lines[0].split(',').map(h => h.trim().replace(/^"|"$/g, ''));
+  return lines.slice(1).filter(l => l.trim()).map(line => {
+    const vals = line.split(',');
+    const obj = {};
+    headers.forEach((h, i) => obj[h] = (vals[i] || '').trim().replace(/^"|"$/g, ''));
+    return obj;
+  });
+}
+
+function normalizeRow(row) {
+  // Accept various column name formats
+  const aliases = {
+    fundName: ['Fund Name', 'fund_name', 'FundName', 'FUND NAME'],
+    fundNum: ['Fund Number ', 'Fund Number', 'fund_number', 'FundNumber'],
+    txType: ['Transaction Type', 'transaction_type', 'TransactionType', 'TxType'],
+    purchases: ['Purchases', 'purchases', 'Buy', 'buy', 'BuyQty'],
+    sales: ['Sales', 'sales', 'Sell', 'sell', 'SellQty'],
+    holdings: ['Holdings', 'holdings', 'Holding'],
+    price: ['Price per share', 'Price', 'price', 'PricePerShare', 'Price Per Share'],
+    date: ['Trade Date', 'Date', 'date', 'TradeDate', 'trade_date'],
+    currency: ['Currency', 'currency'],
+    entity: ['Entity', 'entity', 'Client', 'client'],
+  };
+  const get = (keys) => {
+    for (const k of keys) if (row[k] !== undefined && row[k] !== null) return row[k];
+    return null;
+  };
+  return {
+    fundName: String(get(aliases.fundName) || '').trim(),
+    fundNum: String(get(aliases.fundNum) || '').trim(),
+    txType: String(get(aliases.txType) || '').trim(),
+    purchases: safeNum(get(aliases.purchases)),
+    sales: safeNum(get(aliases.sales)),
+    holdings: get(aliases.holdings) !== null && get(aliases.holdings) !== '' ? safeNum(get(aliases.holdings)) : null,
+    price: safeNum(get(aliases.price)),
+    date: parseDate(get(aliases.date)),
+    currency: String(get(aliases.currency) || 'USD').trim(),
+    entity: String(get(aliases.entity) || '').trim(),
+  };
+}
+
+// ============================================================
+// KRAFT HEINZ INFLATION TABLE (Table A from settlement notice)
+// ============================================================
+const KH_INFLATION = [
+  { from: new Date(2015, 10, 6),  to: new Date(2018, 10, 1),  inf: 12.59 },  // Nov 6 2015 – Nov 1 2018
+  { from: new Date(2018, 10, 2),  to: new Date(2019, 1, 21),  inf: 10.93 },  // Nov 2 2018 – Feb 21 2019
+  { from: new Date(2019, 1, 22),  to: new Date(2019, 7, 7),   inf: 4.04  },  // Feb 22 2019 – Aug 7 2019
+  { from: new Date(2019, 7, 8),   to: new Date(2019, 7, 8),   inf: 1.33  },  // Aug 8 2019 (sale only)
+];
+const KH_CLASS_START = new Date(2015, 10, 6);   // Nov 6 2015
+const KH_CLASS_END   = new Date(2019, 7, 7);    // Aug 7 2019 end of trading
+const KH_LOOKBACK_AVG = 27.55;
+const KH_LOOKBACK_START = new Date(2019, 7, 8);
+const KH_LOOKBACK_END   = new Date(2019, 10, 5);
+
+// 90-day look-back table for KH (Table B key dates)
+const KH_LOOKBACK_TABLE = {
+  '2019-08-08':28.22,'2019-08-09':27.36,'2019-08-12':27.00,'2019-08-13':26.74,
+  '2019-08-14':26.50,'2019-08-15':26.26,'2019-08-16':26.14,'2019-08-19':26.08,
+  '2019-08-20':25.98,'2019-08-21':25.91,'2019-08-22':25.88,'2019-08-23':25.84,
+  '2019-08-26':25.82,'2019-08-27':25.76,'2019-08-28':25.72,'2019-08-29':25.69,
+  '2019-08-30':25.68,'2019-09-03':25.71,'2019-09-04':25.73,'2019-09-05':25.78,
+  '2019-09-06':25.85,'2019-09-09':25.95,'2019-09-10':26.08,'2019-09-11':26.21,
+  '2019-09-12':26.33,'2019-09-13':26.44,'2019-09-16':26.56,'2019-09-17':26.62,
+  '2019-09-18':26.68,'2019-09-19':26.73,'2019-09-20':26.78,'2019-09-23':26.82,
+  '2019-09-24':26.86,'2019-09-25':26.89,'2019-09-26':26.93,'2019-09-27':26.95,
+  '2019-09-30':26.98,'2019-10-01':26.99,'2019-10-02':26.98,'2019-10-03':26.96,
+  '2019-10-04':26.96,'2019-10-07':26.96,'2019-10-08':26.96,'2019-10-09':26.95,
+  '2019-10-10':26.95,'2019-10-11':26.96,'2019-10-14':26.96,'2019-10-15':26.97,
+  '2019-10-16':26.98,'2019-10-17':27.00,'2019-10-18':27.01,'2019-10-21':27.03,
+  '2019-10-22':27.05,'2019-10-23':27.08,'2019-10-24':27.11,'2019-10-25':27.13,
+  '2019-10-28':27.15,'2019-10-29':27.17,'2019-10-30':27.19,'2019-10-31':27.28,
+  '2019-11-01':27.37,'2019-11-04':27.46,'2019-11-05':27.55,
+};
+
+function getKHInflation(date) {
+  if (!date) return 0;
+  for (const band of KH_INFLATION) {
+    if (date >= band.from && date <= band.to) return band.inf;
+  }
+  return 0;
+}
+
+function getKHLookbackAvg(saleDate) {
+  const dk = dateKey(saleDate);
+  return KH_LOOKBACK_TABLE[dk] || KH_LOOKBACK_AVG;
+}
+
+// ============================================================
+// KRAFT HEINZ CALCULATION ENGINE
+// ============================================================
+function calculateKraftHeinz(rawRows) {
+  const rows = rawRows.map(normalizeRow).filter(r => r.txType && r.date);
+
+  // Group by entity + fund
+  const groups = {};
+  for (const r of rows) {
+    const key = `${r.entity}||${r.fundName}`;
+    if (!groups[key]) groups[key] = { entity: r.entity, fundName: r.fundName, rows: [] };
+    groups[key].rows.push(r);
+  }
+
+  const results = []; // { entity, fundName, recognizedLoss, trades[] }
+
+  for (const key of Object.keys(groups)) {
+    const g = groups[key];
+    g.rows.sort((a, b) => dateCmp(a.date, b.date));
+
+    // Build FIFO queue from beginning holdings + purchases within class period
+    const fifoQueue = []; // [{shares, purchaseDate, inflation}]
+
+    // Beginning holdings (shares held at class period start)
+    for (const r of g.rows) {
+      if (r.txType === 'Beginning Holdings' && r.holdings !== null && r.holdings > 0) {
+        // For shares held at class start = Nov 6 2015, they are "purchased" on Nov 6 2015
+        // These are pre-class-period holdings; inflation at purchase = $12.59 per notice
+        const inf = getKHInflation(KH_CLASS_START);
+        fifoQueue.push({ shares: r.holdings, purchaseDate: KH_CLASS_START, inflationAtBuy: inf });
+      }
+    }
+
+    // Purchases during class period
+    for (const r of g.rows) {
+      if (r.txType === 'Purchase' && r.purchases > 0 && r.date >= KH_CLASS_START && r.date <= KH_CLASS_END) {
+        const inf = getKHInflation(r.date);
+        fifoQueue.push({ shares: r.purchases, purchaseDate: r.date, inflationAtBuy: inf, price: r.price });
+      }
+    }
+
+    // Sort FIFO by date
+    fifoQueue.sort((a, b) => dateCmp(a.purchaseDate, b.purchaseDate));
+
+    const trades = [];
+    let totalRecognizedLoss = 0;
+
+    // Process sales
+    const sales = g.rows.filter(r => r.txType === 'Sale' && r.sales > 0 && r.date >= KH_CLASS_START)
+                        .sort((a, b) => dateCmp(a.date, b.date));
+
+    for (const sale of sales) {
+      let sharesToSell = sale.sales;
+      const saleDate = sale.date;
+      const salePrice = sale.price;
+
+      // Determine sale inflation
+      let saleInflation = 0;
+      if (saleDate >= new Date(2019, 7, 8)) {
+        // Aug 8+ 2019: sale inflation = $1.33
+        saleInflation = 1.33;
+      } else {
+        saleInflation = getKHInflation(saleDate);
+      }
+
+      while (sharesToSell > 0 && fifoQueue.length > 0) {
+        const lot = fifoQueue[0];
+        const sharesFromLot = Math.min(lot.shares, sharesToSell);
+
+        // Only eligible if sold on/after Nov 2 2018
+        const corrective1 = new Date(2018, 10, 2);
+        const corrective3End = new Date(2019, 10, 5);
+
+        let recLoss = 0;
+        let scenario = '';
+
+        if (saleDate < corrective1) {
+          // Sold before first corrective disclosure = $0
+          recLoss = 0;
+          scenario = 'Sold before Nov 2 2018';
+        } else if (saleDate >= corrective1 && saleDate <= KH_CLASS_END) {
+          // Sold Nov 2, 2018 – Aug 7, 2019
+          const infDiff = lot.inflationAtBuy - saleInflation;
+          const priceDiff = lot.price ? (lot.price - salePrice) : Infinity;
+          recLoss = Math.max(0, Math.min(infDiff, isFinite(priceDiff) ? priceDiff : infDiff));
+          scenario = 'Nov 2 2018 – Aug 7 2019';
+        } else if (saleDate > KH_CLASS_END && saleDate <= corrective3End) {
+          // Sold Aug 8 – Nov 5, 2019 (90-day lookback applies)
+          const infDiff = lot.inflationAtBuy - saleInflation;
+          const avgClose = getKHLookbackAvg(saleDate);
+          const priceDiff = lot.price ? (lot.price - salePrice) : Infinity;
+          const lookbackDiff = lot.price ? (lot.price - avgClose) : Infinity;
+          recLoss = Math.max(0, Math.min(
+            isFinite(infDiff) ? infDiff : Infinity,
+            isFinite(priceDiff) ? priceDiff : Infinity,
+            isFinite(lookbackDiff) ? lookbackDiff : Infinity
+          ));
+          scenario = 'Aug 8 – Nov 5 2019 (90-day lookback)';
+        } else {
+          // Held after Nov 5 2019
+          const infAtBuy = lot.inflationAtBuy;
+          const priceDiff = lot.price ? (lot.price - KH_LOOKBACK_AVG) : Infinity;
+          recLoss = Math.max(0, Math.min(infAtBuy, isFinite(priceDiff) ? priceDiff : infAtBuy));
+          scenario = 'Held beyond Nov 5 2019';
+        }
+
+        const totalLoss = recLoss * sharesFromLot;
+        totalRecognizedLoss += totalLoss;
+
+        trades.push({
+          action: 'SELL',
+          date: dateKey(saleDate),
+          shares: sharesFromLot,
+          price: salePrice,
+          buyDate: dateKey(lot.purchaseDate),
+          buyInflation: lot.inflationAtBuy,
+          sellInflation: saleInflation,
+          recLossPerShare: recLoss,
+          recLossTotal: totalLoss,
+          scenario,
+        });
+
+        lot.shares -= sharesFromLot;
+        sharesToSell -= sharesFromLot;
+        if (lot.shares <= 0) fifoQueue.shift();
+      }
+    }
+
+    // Handle end holdings (held shares – apply holding formula)
+    for (const r of g.rows) {
+      if (r.txType === 'End Holdings' && r.holdings !== null && r.holdings > 0) {
+        let remainingHeld = r.holdings;
+        for (const lot of fifoQueue) {
+          if (remainingHeld <= 0) break;
+          const sharesFromLot = Math.min(lot.shares, remainingHeld);
+          const infAtBuy = lot.inflationAtBuy;
+          const priceDiff = lot.price ? (lot.price - KH_LOOKBACK_AVG) : Infinity;
+          const recLoss = Math.max(0, Math.min(infAtBuy, isFinite(priceDiff) ? priceDiff : infAtBuy));
+          const totalLoss = recLoss * sharesFromLot;
+          totalRecognizedLoss += totalLoss;
+          trades.push({
+            action: 'HELD',
+            date: dateKey(r.date),
+            shares: sharesFromLot,
+            price: r.price || KH_LOOKBACK_AVG,
+            buyDate: dateKey(lot.purchaseDate),
+            buyInflation: infAtBuy,
+            sellInflation: 0,
+            recLossPerShare: recLoss,
+            recLossTotal: totalLoss,
+            scenario: 'End Holdings – Lookback formula',
+          });
+          remainingHeld -= sharesFromLot;
+        }
+      }
+    }
+
+    results.push({
+      entity: g.entity,
+      fundName: g.fundName,
+      recognizedLoss: totalRecognizedLoss,
+      trades,
+    });
+  }
+
+  renderResults(results, 'kh');
+}
+
+// ============================================================
+// TWITTER INFLATION TABLE (Table 1)
+// ============================================================
+const TW_CLASS_START = new Date(2015, 1, 6);  // Feb 6
+const TW_CLASS_END   = new Date(2015, 6, 28); // Jul 28
+const TW_CORR1_DATE  = new Date(2015, 3, 28); // Apr 28
+const TW_CORR2_DATE  = new Date(2015, 6, 28); // Jul 28
+const TW_LOOKBACK_AVG = 28.06;
+const TW_HOLDVAL     = 29.72; // Aug 3, 2015
+
+// Inflation per share by purchase band (full inflation schedule from Table 1)
+// Based on: purchaseBand x saleBand = decline in inflation
+// See notice Table 1
+const TW_INFLATION_AT_PURCHASE = {
+  'pre_corr1': 20.34,   // Feb 6 – Apr 28 before 3:07pm: full inflation = $20.34
+  'corr1_pm': 11.37,    // Apr 28 after 3:07pm: remaining inflation = $11.37
+  'corr1_to_corr2': 7.41, // Apr 29 – Jul 28: inflation = $7.41 (sold on/after Jul 31)
+};
+
+// Sale inflation remaining at various sale dates (from Table 1)
+function getTWInflationAtSale(purchaseBand, saleDate) {
+  const corr1Eod  = new Date(2015, 3, 28);
+  const corr1Am   = new Date(2015, 3, 28); // before 3:07pm
+  const jul29     = new Date(2015, 6, 29);
+  const jul30     = new Date(2015, 6, 30);
+  const jul31     = new Date(2015, 6, 31);
+  const aug1      = new Date(2015, 7, 1);
+
+  // Decline in inflation by purchase band and sale timing (Table 1)
+  const declines = {
+    'pre_corr1': {
+      'pre_corr1_am': 0,        // sold before 3:07pm Apr 28
+      'corr1_pm': 8.97,         // sold Apr 28 after 3:07pm
+      'corr1_to_jul28': 12.93,  // sold Apr 29 – Jul 28
+      'jul29_30': 18.27,
+      'jul31': 18.69,
+      'aug1_plus': 20.34,       // sold on or retained beyond Aug 1
+    },
+    'corr1_pm': {
+      'pre_corr1_am': 0,
+      'corr1_pm': 0,
+      'corr1_to_jul28': 3.96,
+      'jul29_30': 9.30,
+      'jul31': 9.72,
+      'aug1_plus': 11.37,
+    },
+    'corr1_to_corr2': {
+      'pre_corr1_am': 0,
+      'corr1_pm': 0,
+      'corr1_to_jul28': 0,
+      'jul29_30': 5.34,
+      'jul31': 5.76,
+      'aug1_plus': 7.41,
+    },
+    'post_corr2': {
+      'pre_corr1_am': 0,'corr1_pm': 0,'corr1_to_jul28': 0,'jul29_30': 0,'jul31': 0,'aug1_plus': 0,
+    }
+  };
+
+  // Determine sale bucket
+  let saleBucket;
+  if (saleDate < corr1Eod) {
+    // sold before 3:07pm Apr 28 (approximated by date < Apr 28, or price >= 50.45)
+    saleBucket = 'pre_corr1_am';
+  } else if (saleDate.getTime() === corr1Eod.getTime()) {
+    saleBucket = 'corr1_pm';
+  } else if (saleDate > corr1Eod && saleDate <= TW_CORR2_DATE) {
+    saleBucket = 'corr1_to_jul28';
+  } else if (saleDate >= jul29 && saleDate <= jul30) {
+    saleBucket = 'jul29_30';
+  } else if (saleDate.getTime() === jul31.getTime()) {
+    saleBucket = 'jul31';
+  } else {
+    saleBucket = 'aug1_plus';
+  }
+
+  const band = purchaseBand || 'pre_corr1';
+  return (declines[band] || {})[saleBucket] || 0;
+}
+
+// ============================================================
+// TWITTER CALCULATION ENGINE
+// ============================================================
+function calculateTwitter(rawRows) {
+  const rows = rawRows.map(normalizeRow).filter(r => r.txType && r.date);
+
+  const groups = {};
+  for (const r of rows) {
+    const key = `${r.entity}||${r.fundName}`;
+    if (!groups[key]) groups[key] = { entity: r.entity, fundName: r.fundName, rows: [] };
+    groups[key].rows.push(r);
+  }
+
+  const results = [];
+
+  for (const key of Object.keys(groups)) {
+    const g = groups[key];
+    g.rows.sort((a, b) => dateCmp(a.date, b.date));
+
+    const fifoQueue = [];
+
+    // Beginning holdings (before Feb 6 2015 = class start)
+    for (const r of g.rows) {
+      if (r.txType === 'Beginning Holdings' && r.holdings !== null && r.holdings > 0) {
+        // Held before class period starts: purchase band is pre_corr1
+        fifoQueue.push({ shares: r.holdings, purchaseDate: TW_CLASS_START, purchaseBand: 'pre_corr1', price: r.price || 0, isBeginning: true });
+      }
+    }
+
+    // Purchases during class period
+    for (const r of g.rows) {
+      if (r.txType === 'Purchase' && r.purchases > 0) {
+        const pd = r.date;
+        let band;
+        if (pd >= TW_CLASS_START && pd < TW_CORR1_DATE) band = 'pre_corr1';
+        else if (pd.getTime() === TW_CORR1_DATE.getTime()) band = 'corr1_pm'; // apr 28 pm buys
+        else if (pd > TW_CORR1_DATE && pd <= TW_CORR2_DATE) band = 'corr1_to_corr2';
+        else band = 'post_corr2';
+
+        fifoQueue.push({ shares: r.purchases, purchaseDate: pd, purchaseBand: band, price: r.price || 0 });
+      }
+    }
+
+    fifoQueue.sort((a, b) => dateCmp(a.purchaseDate, b.purchaseDate));
+
+    const trades = [];
+    let totalRecognizedLoss = 0;
+    let totalPurchaseAmt = 0;
+    let totalSalesProceeds = 0;
+
+    // Track all purchases for market gain/loss
+    for (const lot of fifoQueue) {
+      if (!lot.isBeginning) totalPurchaseAmt += lot.shares * lot.price;
+    }
+
+    const sales = g.rows.filter(r => r.txType === 'Sale' && r.sales > 0)
+                        .sort((a, b) => dateCmp(a.date, b.date));
+
+    // First match sales against opening position (beginning holdings)
+    let openingCovered = false;
+    const openingHoldings = fifoQueue.filter(l => l.isBeginning).reduce((s,l) => s+l.shares,0);
+
+    for (const sale of sales) {
+      let sharesToSell = sale.sales;
+      const saleDate = sale.date;
+      const salePrice = sale.price;
+
+      // Check: sold before first corrective (Apr 28 3:07pm) → RLA = 0
+      const soldBeforeCorr1 = saleDate < TW_CORR1_DATE || (saleDate.getTime() === TW_CORR1_DATE.getTime() && salePrice >= 50.45);
+
+      while (sharesToSell > 0 && fifoQueue.length > 0) {
+        const lot = fifoQueue[0];
+        const sharesFromLot = Math.min(lot.shares, sharesToSell);
+
+        let recLoss = 0;
+        let scenario = '';
+
+        if (lot.purchaseBand === 'post_corr2') {
+          recLoss = 0;
+          scenario = 'Purchased after Jul 28 (no recovery)';
+        } else if (soldBeforeCorr1) {
+          recLoss = 0;
+          scenario = 'Sold before corrective disclosure Apr 28';
+        } else {
+          const decline = getTWInflationAtSale(lot.purchaseBand, saleDate);
+          const priceDiff = lot.price > 0 ? (lot.price - salePrice) : Infinity;
+
+          if (saleDate >= new Date(2015, 7, 3) && saleDate <= new Date(2015, 9, 30)) {
+            // 90-day look-back
+            const avgClose = getTWLookbackAvg(saleDate);
+            const lookbackDiff = lot.price > 0 ? (lot.price - avgClose) : Infinity;
+            recLoss = Math.max(0, Math.min(decline, isFinite(priceDiff) ? priceDiff : decline, isFinite(lookbackDiff) ? lookbackDiff : decline));
+            scenario = '90-day lookback (Aug 3 – Oct 30)';
+          } else if (saleDate > new Date(2015, 9, 30)) {
+            // Held beyond Oct 30
+            const lookbackDiff = lot.price > 0 ? (lot.price - TW_LOOKBACK_AVG) : Infinity;
+            recLoss = Math.max(0, Math.min(decline, isFinite(lookbackDiff) ? lookbackDiff : decline));
+            scenario = 'Held beyond Oct 30 2015';
+          } else {
+            recLoss = Math.max(0, Math.min(decline, isFinite(priceDiff) ? priceDiff : decline));
+            scenario = 'Standard (decline in inflation)';
+          }
+        }
+
+        const totalLoss = recLoss * sharesFromLot;
+        totalRecognizedLoss += totalLoss;
+        if (!lot.isBeginning) totalSalesProceeds += sharesFromLot * salePrice;
+
+        trades.push({
+          action: 'SELL',
+          date: dateKey(saleDate),
+          shares: sharesFromLot,
+          price: salePrice,
+          buyDate: dateKey(lot.purchaseDate),
+          buyBand: lot.purchaseBand,
+          recLossPerShare: recLoss,
+          recLossTotal: totalLoss,
+          scenario,
+        });
+
+        lot.shares -= sharesFromLot;
+        sharesToSell -= sharesFromLot;
+        if (lot.shares <= 0) fifoQueue.shift();
+      }
+    }
+
+    // Handle end holdings
+    for (const r of g.rows) {
+      if (r.txType === 'End Holdings' && r.holdings !== null && r.holdings > 0) {
+        let remainingHeld = r.holdings;
+        for (const lot of fifoQueue) {
+          if (remainingHeld <= 0) break;
+          const sharesFromLot = Math.min(lot.shares, remainingHeld);
+          const decline = getTWInflationAtSale(lot.purchaseBand, new Date(2015, 9, 30));
+          const lookbackDiff = lot.price > 0 ? (lot.price - TW_LOOKBACK_AVG) : Infinity;
+          const holdingValDiff = lot.price > 0 ? (lot.price - TW_HOLDVAL) : Infinity;
+          const recLoss = Math.max(0, Math.min(decline, isFinite(holdingValDiff) ? holdingValDiff : decline));
+          const totalLoss = recLoss * sharesFromLot;
+          totalRecognizedLoss += totalLoss;
+          trades.push({
+            action: 'HELD',
+            date: dateKey(r.date),
+            shares: sharesFromLot,
+            price: r.price || TW_HOLDVAL,
+            buyDate: dateKey(lot.purchaseDate),
+            buyBand: lot.purchaseBand,
+            recLossPerShare: recLoss,
+            recLossTotal: totalLoss,
+            scenario: 'End Holdings (holding value $29.72)',
+          });
+          remainingHeld -= sharesFromLot;
+        }
+      }
+    }
+
+    // Market gain/loss check
+    const holdingValue = fifoQueue.reduce((s, l) => s + l.shares * TW_HOLDVAL, 0);
+    const marketLoss = totalPurchaseAmt - (totalSalesProceeds + holdingValue);
+    const finalRecLoss = marketLoss <= 0 ? 0 : Math.min(totalRecognizedLoss, marketLoss);
+
+    results.push({
+      entity: g.entity,
+      fundName: g.fundName,
+      recognizedLoss: finalRecLoss,
+      rawRecLoss: totalRecognizedLoss,
+      marketLoss,
+      trades,
+    });
+  }
+
+  renderResults(results, 'tw');
+}
+
+// Twitter 90-day lookback table
+const TW_LOOKBACK_TABLE = {
+  '2015-08-03':29.27,'2015-08-04':29.31,'2015-08-05':29.03,'2015-08-06':28.66,
+  '2015-08-07':28.33,'2015-08-10':28.53,'2015-08-11':28.68,'2015-08-12':28.77,
+  '2015-08-13':28.75,'2015-08-14':28.78,'2015-08-17':28.80,'2015-08-18':28.76,
+  '2015-08-19':28.67,'2015-08-20':28.48,'2015-08-21':28.31,'2015-08-24':28.11,
+  '2015-08-25':27.89,'2015-08-26':27.73,'2015-08-27':27.67,'2015-08-28':27.62,
+  '2015-08-31':27.63,'2015-09-01':27.61,'2015-09-02':27.61,'2015-09-03':27.64,
+  '2015-09-04':27.66,'2015-09-08':27.64,'2015-09-09':27.63,'2015-09-10':27.63,
+  '2015-09-11':27.62,'2015-09-14':27.60,'2015-09-15':27.58,'2015-09-16':27.59,
+  '2015-09-17':27.58,'2015-09-18':27.59,'2015-09-21':27.59,'2015-09-22':27.57,
+  '2015-09-23':27.55,'2015-09-24':27.52,'2015-09-25':27.46,'2015-09-28':27.41,
+  '2015-09-29':27.37,'2015-09-30':27.36,'2015-10-01':27.29,'2015-10-02':27.27,
+  '2015-10-05':27.29,'2015-10-06':27.30,'2015-10-07':27.35,'2015-10-08':27.41,
+  '2015-10-09':27.48,'2015-10-12':27.51,'2015-10-13':27.54,'2015-10-14':27.57,
+  '2015-10-15':27.61,'2015-10-16':27.68,'2015-10-19':27.74,'2015-10-20':27.80,
+  '2015-10-21':27.82,'2015-10-22':27.84,'2015-10-23':27.89,'2015-10-26':27.94,
+  '2015-10-27':27.99,'2015-10-28':28.04,'2015-10-29':28.05,'2015-10-30':28.06,
+};
+function getTWLookbackAvg(saleDate) {
+  const dk = dateKey(saleDate);
+  return TW_LOOKBACK_TABLE[dk] || TW_LOOKBACK_AVG;
+}
+
+// ============================================================
+// RENDER RESULTS
+// ============================================================
+function renderResults(results, id) {
+  const container = document.getElementById(id + '-results');
+  container.style.display = 'block';
+
+  // Aggregate by entity
+  const byEntity = {};
+  for (const r of results) {
+    if (!byEntity[r.entity]) byEntity[r.entity] = { total: 0, funds: [] };
+    byEntity[r.entity].total += r.recognizedLoss;
+    byEntity[r.entity].funds.push(r);
+  }
+
+  const grandTotal = results.reduce((s, r) => s + r.recognizedLoss, 0);
+  const totalFunds = results.length;
+
+  let html = `<div class="card">
+    <h2>📊 Results Summary</h2>
+    <div class="summary-grid">
+      <div class="stat-box">
+        <div class="label">Grand Total Recognized Loss</div>
+        <div class="value">${fmt(grandTotal)}</div>
+      </div>
+      <div class="stat-box">
+        <div class="label">Total Funds / Portfolios</div>
+        <div class="value">${totalFunds}</div>
+      </div>
+      <div class="stat-box">
+        <div class="label">Total Clients / Entities</div>
+        <div class="value">${Object.keys(byEntity).length}</div>
+      </div>
+    </div>`;
+
+  // Per entity summary table
+  html += `<div class="section-title">Recognized Loss by Client</div>
+  <div class="tbl-wrap"><table>
+    <thead><tr>
+      <th>Client / Entity</th>
+      <th>Funds</th>
+      <th class="number">Total Recognized Loss</th>
+    </tr></thead><tbody>`;
+  for (const [entity, data] of Object.entries(byEntity)) {
+    html += `<tr>
+      <td><strong>${entity || '—'}</strong></td>
+      <td>${data.funds.length}</td>
+      <td class="number ${data.total > 0 ? 'positive' : 'zero'}">${fmt(data.total)}</td>
+    </tr>`;
+  }
+  html += `</tbody></table></div></div>`;
+
+  // Per fund breakdown
+  html += `<div class="card"><h2>📁 Recognized Loss by Fund</h2>
+  <div class="tbl-wrap"><table>
+    <thead><tr>
+      <th>Client</th><th>Fund</th>
+      <th class="number">Recognized Loss</th>
+      ${id === 'tw' ? '<th class="number">Market Loss Check</th>' : ''}
+    </tr></thead><tbody>`;
+
+  for (const r of results) {
+    const cls = r.recognizedLoss > 0 ? 'positive' : 'zero';
+    html += `<tr>
+      <td>${r.entity || '—'}</td>
+      <td>${r.fundName || '—'}</td>
+      <td class="number ${cls}">${fmt(r.recognizedLoss)}</td>
+      ${id === 'tw' ? `<td class="number">${fmt(r.marketLoss)}</td>` : ''}
+    </tr>`;
+  }
+  html += `</tbody></table></div></div>`;
+
+  // Detailed trade-level breakdown per fund
+  html += `<div class="card"><h2>🔍 Detailed Trade Breakdown</h2>`;
+
+  for (const [entity, eData] of Object.entries(byEntity)) {
+    html += `<div class="section-title" style="margin-top:18px;font-size:1rem;background:#1a3557;color:#fff;padding:6px 12px;border-radius:4px;">Client: ${entity} — Total: ${fmt(eData.total)}</div>`;
+
+    for (const r of eData.funds) {
+      if (r.trades.length === 0) continue;
+      const fundId = `detail-${id}-${entity.replace(/\W/g,'-')}-${r.fundName.replace(/\W/g,'-')}`;
+      html += `<div style="margin:10px 0 4px;">
+        <strong>${r.fundName}</strong>
+        <span style="margin-left:12px;">${fmt(r.recognizedLoss)}</span>
+        <button class="collapse-btn" onclick="toggleDetail('${fundId}')">▼ Show/Hide</button>
+      </div>
+      <div id="${fundId}" style="display:none;">
+      <div class="tbl-wrap"><table>
+        <thead><tr>
+          <th>Action</th><th>Trade Date</th><th>Shares</th>
+          <th>Trade Price</th><th>Buy Date</th>
+          <th>Inflation @ Buy</th>
+          <th class="number">RLA / Share</th>
+          <th class="number">Total RLA</th>
+          <th>Scenario</th>
+        </tr></thead><tbody>`;
+
+      for (const t of r.trades) {
+        const cls = t.recLossTotal > 0 ? 'positive' : 'zero';
+        html += `<tr>
+          <td><span class="badge ${t.action==='SELL'?'badge-red':'badge-blue'}">${t.action}</span></td>
+          <td>${t.date}</td>
+          <td class="number">${fmtShares(t.shares)}</td>
+          <td class="number">${t.price > 0 ? fmt(t.price) : '—'}</td>
+          <td>${t.buyDate}</td>
+          <td class="number">${t.buyInflation !== undefined ? fmt(t.buyInflation) : '—'}</td>
+          <td class="number ${cls}">${fmt(t.recLossPerShare)}</td>
+          <td class="number ${cls}">${fmt(t.recLossTotal)}</td>
+          <td style="font-size:0.8rem;color:#555;">${t.scenario || ''}</td>
+        </tr>`;
+      }
+
+      html += `</tbody></table></div></div>`;
+    }
+  }
+
+  html += `</div>`;
+
+  // Export button
+  html += `<div style="margin-bottom:24px;">
+    <button class="btn btn-success" onclick="exportCSV('${id}')">⬇️ Export Results to CSV</button>
+  </div>`;
+
+  container.innerHTML = html;
+  window['_results_' + id] = results;
+}
+
+function toggleDetail(id) {
+  const el = document.getElementById(id);
+  if (el) el.style.display = el.style.display === 'none' ? 'block' : 'none';
+}
+
+function exportCSV(id) {
+  const results = window['_results_' + id];
+  if (!results) return;
+  const rows = [['Client', 'Fund', 'Action', 'Trade Date', 'Shares', 'Trade Price', 'Buy Date', 'RLA Per Share', 'Total RLA', 'Scenario']];
+  for (const r of results) {
+    for (const t of r.trades) {
+      rows.push([r.entity, r.fundName, t.action, t.date, t.shares, t.price, t.buyDate, t.recLossPerShare.toFixed(4), t.recLossTotal.toFixed(2), t.scenario]);
+    }
+  }
+  const csv = rows.map(r => r.map(c => `"${String(c).replace(/"/g,'""')}"`).join(',')).join('\n');
+  const blob = new Blob([csv], { type: 'text/csv' });
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = `${id}_recognized_losses.csv`;
+  a.click();
+}
+</script>
+</body>
+</html>
